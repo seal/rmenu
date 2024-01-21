@@ -5,6 +5,7 @@ use std::env;
 use std::{fs, process::Command};
 
 use eframe::egui::{self, Key};
+use std::path::Path;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -128,20 +129,21 @@ impl eframe::App for MyApp {
         });
     }
 }
+
 fn open_application(app: &Application) {
-    let command_string = &app.exec_file;
-
     if let Some(terminal_command) = get_terminal_command() {
-        println!("{}{}", terminal_command, command_string);
-        let child = Command::new(&terminal_command)
-            .arg(command_string)
-            .spawn()
-            .map_err(|e| eprintln!("Error launching application: {}{}", e, command_string))
-            .expect("Failed to spawn process");
+        let desktop_file_path = app.path.clone().unwrap_or_else(|| "".to_string());
+        let application_name = std::path::Path::new(&desktop_file_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
 
-        println!("Spawned process with PID: {}", child.id());
+        match Command::new("gtk-launch").arg(application_name).spawn() {
+            Ok(_) => {}
+            Err(e) => eprintln!("Error launching application: {}", e),
+        }
     } else {
-        eprintln!("Unable to determine a sensible terminal");
+        eprintln!("No terminal command found. Cannot launch application.");
     }
 }
 
